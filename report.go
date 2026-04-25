@@ -24,13 +24,12 @@ func FullReport() (map[time.Time]Report, error) {
 	if readErr != nil {
 		return map[time.Time]Report{}, readErr
 	}
-	
 
 	return report(fileBytes)
 }
 
 func report(b []byte) (map[time.Time]Report, error) {
-	entries, parseErr := parse(b)
+	entries, parseErr := parseEntries(b)
 	if parseErr != nil {
 		return map[time.Time]Report{}, parseErr
 	}
@@ -38,29 +37,29 @@ func report(b []byte) (map[time.Time]Report, error) {
 	if len(entries) == 0 {
 		return map[time.Time]Report{}, errors.New("nothing to report.")
 	}
-	
+
 	if !slices.IsSortedFunc(entries, compareEntriesByTime) {
 		return map[time.Time]Report{}, errors.New("didfile timestamps not in ascending order.")
 	}
-	
-	// We append a dummy entry to calculate how long the current task has been going on.
+
+	// We append a dummy entry to calculate how long the current activity has been going on.
 	entries = append(entries, entry{"", time.Now()})
 	report := map[time.Time]Report{}
-	for i := 0; i < len(entries) - 1; i++ {
+	for i := 0; i < len(entries)-1; i++ {
 		entry := entries[i]
 		durationToday, durationTomorrow := durations(entry, entries[i+1])
 		if todayEntries, ok := report[entry.Today()]; ok {
-			todayEntries[entry.Activity] += durationToday
+			todayEntries[entry.activity] += durationToday
 		} else {
 			report[entry.Today()] = Report{}
-			report[entry.Today()][entry.Activity] = durationToday
+			report[entry.Today()][entry.activity] = durationToday
 		}
 
 		if tomorrowEntries, ok := report[entry.Tomorrow()]; ok && durationTomorrow != 0 {
-			tomorrowEntries[entry.Activity] += durationTomorrow
+			tomorrowEntries[entry.activity] += durationTomorrow
 		} else {
 			report[entry.Tomorrow()] = Report{}
-			report[entry.Tomorrow()][entry.Activity] = durationTomorrow
+			report[entry.Tomorrow()][entry.activity] = durationTomorrow
 		}
 
 	}
@@ -69,7 +68,7 @@ func report(b []byte) (map[time.Time]Report, error) {
 }
 
 type entry struct {
-	Activity string
+	activity string
 	time.Time
 }
 
@@ -80,10 +79,10 @@ func (e entry) Today() time.Time {
 }
 
 func (e entry) Tomorrow() time.Time {
-	return e.Today().AddDate(0,0,1)
+	return e.Today().AddDate(0, 0, 1)
 }
 
-func parse(b []byte) ([]entry, error) {
+func parseEntries(b []byte) ([]entry, error) {
 	if len(b) == 0 {
 		return []entry{}, nil
 	}
@@ -98,7 +97,7 @@ func parse(b []byte) ([]entry, error) {
 
 		entry, parseErr := parseEntry(trimmed)
 		if parseErr != nil {
-			return entries, errors.Join(DidfileEntryError(line), parseErr)
+			return entries, DidfileEntryError{line, parseErr}
 		}
 
 		entries = append(entries, entry)
@@ -107,25 +106,33 @@ func parse(b []byte) ([]entry, error) {
 	return entries, nil
 }
 
+const (
+	// Length of textual representation of a valid RFC3339 timestamp in UTC
+	timestampEndIndex int = 20
+	// Timestamp and entry are separated by a colon.
+	entryStartIndex = 21
+)
+
 func parseEntry(b []byte) (entry, error) {
-	// An entry consists of a valid RFC3339 timestamp in UTC, a colon and non empty
-	// entry text. Splitting by colon must therefore yield 4 non empty components.
-	components := bytes.FieldsFunc(b, isColon)
-	if len(components) < 4 {
-		return entry{}, errors.New("not enough components in entry.")
+	if len(b) < entryStartIndex {
+		return entry{}, errors.New("entry invalid.")
 	}
 
-	maybeTime := string(bytes.Join(components[:3], []byte{':'}))
+	maybeTime := string(b[:timestampEndIndex])
 	timestamp, parseErr := time.Parse(time.RFC3339, maybeTime)
 	if parseErr != nil {
 		return entry{}, parseErr
 	}
 
-	if len(bytes.TrimSpace(components[3])) == 0 {
+	maybeEntry := bytes.TrimSpace(b[entryStartIndex:])
+	if len(maybeEntry) == 0 {
 		return entry{}, errors.New("entry empty.")
 	}
-	
-	return entry{string(components[3]), timestamp.Round(0).UTC()}, nil
+
+	// To use the timestamp later as key in a map, we must discard the monotonic clock
+	// reading.
+	// Refer https://pkg.go.dev/time#Time.
+	return entry{string(maybeEntry), timestamp.Round(0).UTC()}, nil
 }
 
 func durations(start, end entry) (time.Duration, time.Duration) {
@@ -144,8 +151,11 @@ func compareEntriesByTime(a, b entry) int {
 	return a.Time.Compare(b.Time)
 }
 
-type DidfileEntryError int
+type DidfileEntryError struct {
+	line int
+	err  error
+}
 
 func (e DidfileEntryError) Error() string {
-	return "invalid entry at line " + fmt.Sprint(int(e)) + ":"
+	return "invalid entry at line " + fmt.Sprint(e.line) + ": " + e.err.Error()
 }
