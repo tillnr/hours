@@ -12,7 +12,7 @@ func main() {
 		usage()
 	}
 
-	err := hours.Add(strings.Join(os.Args[1:], " "));
+	err := hours.Add(strings.Join(os.Args[1:], " "))
 	if err != nil {
 		println(err.Error())
 		os.Exit(1)

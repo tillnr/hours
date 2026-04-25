@@ -3,15 +3,15 @@ package hours
 import (
 	"errors"
 	"os"
-	"time"
 	"path/filepath"
+	"time"
 )
 
 type fileMode int
 
 const (
 	openAppend fileMode = fileMode(os.O_APPEND | os.O_WRONLY)
-	openRead fileMode = fileMode(os.O_RDONLY)
+	openRead   fileMode = fileMode(os.O_RDONLY)
 )
 
 type file struct {
@@ -51,10 +51,10 @@ func path() (string, error) {
 		return filepath.Join(data, "didfile"), nil
 	}
 
-	home, err := os.UserHomeDir(); 
+	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-		
+
 	return filepath.Join(home, "didfile"), nil
 }
