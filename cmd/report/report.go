@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -8,19 +9,19 @@ import (
 )
 
 func main() {
-	report, err := hours.FullReport() 
+	report, err := hours.FullReport()
 	if err != nil {
 		println("Could not make report:", err.Error())
 		os.Exit(1)
 	}
-	
-	for day, entries := range(report) {
-		for key, duration := range(entries) {
+
+	for day, activities := range report {
+		for activity, duration := range activities {
 			if duration == 0 {
 				continue
 			}
 
-			println(day.Local().Format(time.DateOnly), key, duration.String())
+			fmt.Printf("%v %v %v\n", day.Local().Format(time.DateOnly), activity, duration.String())
 		}
 	}
 }
