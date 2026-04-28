@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/tillnr/hours"
+	"github.com/tillnr/hours/didfile"
 )
 
 func main() {
@@ -12,11 +12,13 @@ func main() {
 		usage()
 	}
 
-	err := hours.Add(strings.Join(os.Args[1:], " "))
+	didfile, err := didfile.Open()	
 	if err != nil {
 		println(err.Error())
-		os.Exit(1)
+		return
 	}
+
+	didfile.Append(strings.Join(os.Args[1:], " "))
 }
 
 func usage() {

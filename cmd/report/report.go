@@ -2,26 +2,26 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"time"
 
-	"github.com/tillnr/hours"
+	"github.com/tillnr/hours/didfile"
+	"github.com/tillnr/hours/report"
 )
 
 func main() {
-	report, err := hours.FullReport()
+	didfile, err := didfile.Open()
 	if err != nil {
-		println("Could not make report:", err.Error())
-		os.Exit(1)
+		println(err.Error())
+		return
+	}
+	defer didfile.Close()
+
+	report, err := report.Full(didfile.Reader())
+	if err != nil {
+		println(err.Error())
+		return
 	}
 
-	for day, activities := range report {
-		for activity, duration := range activities {
-			if duration == 0 {
-				continue
-			}
-
-			fmt.Printf("%v %v %v\n", day.Local().Format(time.DateOnly), activity, duration.String())
-		}
+	for activity, duration := range report {
+		fmt.Printf("%v %v \n", activity, duration.Hours())
 	}
 }
