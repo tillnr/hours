@@ -14,6 +14,9 @@ type timeValue struct {
 }
 
 func (t timeValue) String() string {
+	if t.Time == nil {
+		return time.Time{}.Local().Format(time.RFC3339)
+	}
 	return t.Time.Local().Format(time.RFC3339)
 }
 
@@ -50,7 +53,7 @@ func main() {
 	}
 	defer didfile.Close()
 
-	report, err := report.From(from.Time, didfile.Reader())
+	report, err := report.From(from, didfile.Reader())
 	if err != nil {
 		println(err.Error())
 		return
