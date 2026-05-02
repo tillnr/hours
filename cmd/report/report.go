@@ -10,7 +10,7 @@ import (
 )
 
 type timeValue struct {
-	time.Time
+	*time.Time
 }
 
 func (t timeValue) String() string {
@@ -19,7 +19,7 @@ func (t timeValue) String() string {
 
 func (t timeValue) Set(maybeTime string) error {
 	parsed, err := parse(maybeTime)
-	t.Time = parsed
+	*t.Time = parsed
 	return err
 }
 
@@ -29,17 +29,18 @@ func parse(maybeTime string) (time.Time, error) {
 		return time.Time{}, err
 	}
 
-	t, err := time.ParseInLocation(time.RFC3339, maybeTime, loc)
-	if err == nil {
-		return t, nil
+	t, err := time.ParseInLocation(time.DateOnly, maybeTime, loc)
+	if err != nil {
+		return time.ParseInLocation(time.RFC3339, maybeTime, loc)
 	}
 
-	return time.ParseInLocation(time.DateOnly, maybeTime, loc)
+	return t, nil
 }
 
 func main() {
-	var from = timeValue{}
-	flag.Var(from, "from", "generate a report from point in time onwards")
+	var from = time.Time{}
+	flag.Var(timeValue{&from}, "from", `
+	`)
 	flag.Parse()
 
 	didfile, err := didfile.Open()
